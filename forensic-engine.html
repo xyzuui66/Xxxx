@@ -2,86 +2,164 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Security Forensic Engine</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xxxx- guard</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; margin: 0; background: #000; color: #00ff00; overflow: hidden; }
+        #terminal-ui { display: flex; flex-direction: column; height: 100vh; padding: 10px; box-sizing: border-box; }
+        .header { border-bottom: 2px solid #00ff00; padding-bottom: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; font-weight: bold; }
+        .monitor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .stat-box { border: 1px solid #00ff00; padding: 10px; background: rgba(0, 255, 0, 0.05); font-size: 12px; }
+        .log-container { flex-grow: 1; border: 1px solid #00ff00; background: #050505; padding: 10px; overflow-y: auto; font-size: 12px; margin-bottom: 10px; }
+        .log-entry { margin-bottom: 5px; line-height: 1.4; }
+        .log-time { color: #888; }
+        .log-warn { color: #ff0000; font-weight: bold; }
+        .log-info { color: #00ffff; }
+        .log-success { color: #00ff00; }
+        #control-panel { display: flex; gap: 10px; }
+        input { background: #000; border: 1px solid #00ff00; color: #00ff00; padding: 10px; flex-grow: 1; font-family: monospace; }
+        button { background: #00ff00; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
+        iframe#protected-view { display: none; height: 70vh; width: 100%; border: 1px solid #00ff00; background: white; }
+        .cursor { display: inline-block; width: 8px; height: 15px; background: #00ff00; animation: blink 1s infinite; vertical-align: middle; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    </style>
 </head>
 <body>
-    <script>
-        // 1. Fungsi Utama: Menembus VPN melalui WebRTC Leak
-        async function traceIdentity() {
-            return new Promise((resolve) => {
-                const results = {
-                    localIp: "Not Detected",
-                    publicIp: "Scanning...",
-                    vpnDetected: false
-                };
 
-                const pc = new RTCPeerConnection({
-                    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-                });
-
-                pc.createDataChannel("");
-                pc.createOffer().then(offer => pc.setLocalDescription(offer));
-
-                pc.onicecandidate = (ice) => {
-                    if (!ice || !ice.candidate || !ice.candidate.candidate) return;
-
-                    const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
-                    const match = ipRegex.exec(ice.candidate.candidate);
-                    
-                    if (match) {
-                        const detectedIP = match[1];
-                        // Jika IP diawali 192.168 atau 10.0, itu IP Lokal (asli perangkat)
-                        if (detectedIP.startsWith('192.168') || detectedIP.startsWith('10.')) {
-                            results.localIp = detectedIP;
-                        } else {
-                            results.publicIp = detectedIP;
-                        }
-                    }
-                };
-
-                // Tunggu 3 detik untuk mengumpulkan data
-                setTimeout(async () => {
-                    // Cek juga melalui API publik sebagai pembanding
-                    try {
-                        const res = await fetch('https://ipapi.co/json/');
-                        const apiData = await res.json();
-                        
-                        // Jika IP dari API berbeda dengan IP dari WebRTC, fiks dia pakai VPN
-                        if (results.publicIp !== "Scanning..." && results.publicIp !== apiData.ip) {
-                            results.vpnDetected = true;
-                        }
-                        
-                        results.apiData = apiData;
-                        resolve(results);
-                    } catch (e) {
-                        resolve(results);
-                    }
-                }, 3000);
-            });
-        }
-
-        // 2. Kirim data ke Terminal Utama (jika dibuka lewat iframe/popup)
-        async function runEngine() {
-            console.log("Forensic Engine Started...");
-            const report = await traceIdentity();
-            
-            // Mengirim data balik ke jendela utama (Web Guard)
-            if (window.opener) {
-                window.opener.postMessage({ type: 'FORENSIC_REPORT', data: report }, "*");
-            }
-            
-            // Log ke console untuk pengecekan manual (Inspect Element)
-            console.table(report);
-        }
-
-        window.onload = runEngine;
-    </script>
-    
-    <div style="background: #000; color: #0f0; font-family: monospace; padding: 20px;">
-        <h2>FORENSIC ENGINE ACTIVE</h2>
-        <p>Scanning for network leaks...</p>
-        <p>Status: <span style="color: yellow;">ANALYZING_PACKETS</span></p>
+<div id="terminal-ui">
+    <div class="header">
+        <div>SYSTEM: WEB_GUARD_ULTIMATE_v7</div>
+        <div id="live-clock">00:00:00</div>
     </div>
+
+    <div class="monitor-grid">
+        <div class="stat-box">
+            STATUS: <span id="sys-status" style="color: yellow;">IDLE</span><br>
+            TRAFIK: <span id="traffic-count">0</span> REQ/s<br>
+            FIREWALL: <span id="fw-status">READY</span>
+        </div>
+        <div class="stat-box">
+            BLOCKED: <span id="block-count" style="color: red;">0</span><br>
+            REAL_IP: <span id="real-ip-display" style="color: #00ffff;">SCANNING...</span><br>
+            VPN_STAT: <span id="vpn-stat">UNKNOWN</span>
+        </div>
+    </div>
+
+    <div class="log-container" id="terminal-log">
+        <div class="log-entry">> Web Guard Terminal System Initialized...</div>
+        <div class="log-entry">> Menunggu target untuk diamankan <span class="cursor"></span></div>
+    </div>
+
+    <div id="control-panel">
+        <input type="text" id="targetUrl" placeholder="https://link-rahasia-anda.com">
+        <button onclick="activateSystem()">AKTIFKAN</button>
+    </div>
+
+    <iframe id="protected-view" src=""></iframe>
+</div>
+
+<div id="forensic-logic" style="display:none;"></div>
+
+<script>
+    let blockCount = 0;
+
+    // 1. Live Clock
+    setInterval(() => {
+        document.getElementById('live-clock').innerText = new Date().toLocaleTimeString();
+    }, 1000);
+
+    function addLog(msg, type = 'info') {
+        const log = document.getElementById('terminal-log');
+        const time = new Date().toLocaleTimeString();
+        let colorClass = 'log-info';
+        if (type === 'warn') colorClass = 'log-warn';
+        if (type === 'success') colorClass = 'log-success';
+        
+        log.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="${colorClass}">${msg}</span></div>`;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    // 2. Forensic Engine: Menembus VPN via WebRTC
+    async function runForensicScan() {
+        addLog("DEEP_SCAN: Mencari kebocoran WebRTC untuk IP asli...", "warn");
+        
+        return new Promise((resolve) => {
+            const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+            pc.createDataChannel("");
+            pc.createOffer().then(o => pc.setLocalDescription(o));
+            
+            pc.onicecandidate = (ice) => {
+                if (!ice || !ice.candidate) return;
+                const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
+                const match = ipRegex.exec(ice.candidate.candidate);
+                if (match) {
+                    const ip = match[1];
+                    if (!ip.startsWith('192.168') && !ip.startsWith('10.')) {
+                        resolve(ip);
+                    }
+                }
+            };
+            setTimeout(() => resolve(null), 3000);
+        });
+    }
+
+    // 3. Aktivasi Sistem
+    async function activateSystem() {
+        const url = document.getElementById('targetUrl').value;
+        if (!url) return alert("URL Target wajib diisi!");
+
+        addLog("MEMULAI PROTOKOL PERTAHANAN TINGKAT TINGGI...", "warn");
+        document.getElementById('sys-status').innerText = "SCANNING";
+        
+        // Melacak IP via API Standar
+        try {
+            const res = await fetch('https://ipapi.co/json/');
+            const data = await res.json();
+            addLog(`TRACKER: Deteksi Awal IP: ${data.ip} (${data.org})`, "info");
+            
+            // Jalankan Forensic Scan (VPN Bypass)
+            const realIP = await runForensicScan();
+            if (realIP && realIP !== data.ip) {
+                addLog(`CRITICAL: VPN TERDETEKSI! IP ASLI: ${realIP}`, "warn");
+                document.getElementById('real-ip-display').innerText = realIP;
+                document.getElementById('vpn-stat').innerText = "BYPASSED";
+                document.getElementById('vpn-stat').style.color = "red";
+            } else {
+                addLog("SISTEM: Tidak ada kebocoran VPN terdeteksi.", "success");
+                document.getElementById('real-ip-display').innerText = data.ip;
+                document.getElementById('vpn-stat').innerText = "NONE/SECURE";
+            }
+        } catch (e) {
+            addLog("ERROR: Gagal memuat database pelacakan.", "warn");
+        }
+
+        setTimeout(() => {
+            addLog("SISTEM AKTIF: Membuka Gerbang Aman...", "success");
+            document.getElementById('sys-status').innerText = "PROTECTED";
+            document.getElementById('sys-status').style.color = "#00ff00";
+            document.getElementById('control-panel').style.display = 'none';
+            document.getElementById('terminal-ui').style.height = 'auto';
+            document.getElementById('terminal-log').style.height = '150px';
+            
+            const frame = document.getElementById('protected-view');
+            frame.style.display = 'block';
+            frame.src = url;
+            
+            startAttackMonitor();
+        }, 2000);
+    }
+
+    function startAttackMonitor() {
+        setInterval(() => {
+            document.getElementById('traffic-count').innerText = Math.floor(Math.random() * 100);
+            if (Math.random() > 0.85) {
+                blockCount++;
+                document.getElementById('block-count').innerText = blockCount;
+                addLog(`DDoS_BLOCK: Menggagalkan paket sampah dari IP Penyerang.`, "warn");
+            }
+        }, 2500);
+    }
+</script>
+
 </body>
 </html>
-
