@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Security Forensic Engine</title>
+</head>
+<body>
+    <script>
+        // 1. Fungsi Utama: Menembus VPN melalui WebRTC Leak
+        async function traceIdentity() {
+            return new Promise((resolve) => {
+                const results = {
+                    localIp: "Not Detected",
+                    publicIp: "Scanning...",
+                    vpnDetected: false
+                };
+
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+                });
+
+                pc.createDataChannel("");
+                pc.createOffer().then(offer => pc.setLocalDescription(offer));
+
+                pc.onicecandidate = (ice) => {
+                    if (!ice || !ice.candidate || !ice.candidate.candidate) return;
+
+                    const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
+                    const match = ipRegex.exec(ice.candidate.candidate);
+                    
+                    if (match) {
+                        const detectedIP = match[1];
+                        // Jika IP diawali 192.168 atau 10.0, itu IP Lokal (asli perangkat)
+                        if (detectedIP.startsWith('192.168') || detectedIP.startsWith('10.')) {
+                            results.localIp = detectedIP;
+                        } else {
+                            results.publicIp = detectedIP;
+                        }
+                    }
+                };
+
+                // Tunggu 3 detik untuk mengumpulkan data
+                setTimeout(async () => {
+                    // Cek juga melalui API publik sebagai pembanding
+                    try {
+                        const res = await fetch('https://ipapi.co/json/');
+                        const apiData = await res.json();
+                        
+                        // Jika IP dari API berbeda dengan IP dari WebRTC, fiks dia pakai VPN
+                        if (results.publicIp !== "Scanning..." && results.publicIp !== apiData.ip) {
+                            results.vpnDetected = true;
+                        }
+                        
+                        results.apiData = apiData;
+                        resolve(results);
+                    } catch (e) {
+                        resolve(results);
+                    }
+                }, 3000);
+            });
+        }
+
+        // 2. Kirim data ke Terminal Utama (jika dibuka lewat iframe/popup)
+        async function runEngine() {
+            console.log("Forensic Engine Started...");
+            const report = await traceIdentity();
+            
+            // Mengirim data balik ke jendela utama (Web Guard)
+            if (window.opener) {
+                window.opener.postMessage({ type: 'FORENSIC_REPORT', data: report }, "*");
+            }
+            
+            // Log ke console untuk pengecekan manual (Inspect Element)
+            console.table(report);
+        }
+
+        window.onload = runEngine;
+    </script>
+    
+    <div style="background: #000; color: #0f0; font-family: monospace; padding: 20px;">
+        <h2>FORENSIC ENGINE ACTIVE</h2>
+        <p>Scanning for network leaks...</p>
+        <p>Status: <span style="color: yellow;">ANALYZING_PACKETS</span></p>
+    </div>
+</body>
+</html>
+
