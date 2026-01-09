@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TERMINAL - Web Guard Security</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; margin: 0; background: #000; color: #00ff00; overflow: hidden; }
+        
+        /* Dashboard Terminal */
+        #terminal-ui { display: flex; flex-direction: column; height: 100vh; padding: 10px; box-sizing: border-box; }
+        
+        .header { border-bottom: 2px solid #00ff00; padding-bottom: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; font-weight: bold; }
+        
+        .monitor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .stat-box { border: 1px solid #00ff00; padding: 10px; background: rgba(0, 255, 0, 0.05); }
+
+        .log-container { flex-grow: 1; border: 1px solid #00ff00; background: #050505; padding: 10px; overflow-y: auto; font-size: 13px; margin-bottom: 10px; }
+        .log-entry { margin-bottom: 5px; }
+        .log-time { color: #888; }
+        .log-warn { color: #ff0000; font-weight: bold; }
+        .log-info { color: #00ffff; }
+
+        input { background: #000; border: 1px solid #00ff00; color: #00ff00; padding: 10px; width: 70%; font-family: monospace; }
+        button { background: #00ff00; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
+
+        /* Iframe Display */
+        #protected-view { display: none; height: 100vh; width: 100%; border: none; }
+
+        /* Animasi Kursor */
+        .cursor { display: inline-block; width: 10px; height: 18px; background: #00ff00; animation: blink 1s infinite; vertical-align: middle; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+<div id="terminal-ui">
+    <div class="header">
+        <div>SYSTEM: WEB_GUARD_V6.0</div>
+        <div id="live-clock">00:00:00</div>
+    </div>
+
+    <div class="monitor-grid">
+        <div class="stat-box">
+            STATUS: <span id="sys-status" style="color: yellow;">STANDBY</span><br>
+            TRAFIK: <span id="traffic-count">0</span> REQ/s<br>
+            FIREWALL: <span id="fw-status">READY</span>
+        </div>
+        <div class="stat-box">
+            BLOCKED: <span id="block-count" style="color: red;">0</span><br>
+            TRACKER: <span id="last-ip">NONE</span><br>
+            CPU_LOAD: <span id="cpu-load">1%</span>
+        </div>
+    </div>
+
+    <div class="log-container" id="terminal-log">
+        <div class="log-entry">Web Guard Terminal System Ready...</div>
+        <div class="log-entry">Ketik URL target dan klik AKTIFKAN untuk memulai proteksi.</div>
+        <div class="log-entry">Menunggu input user <span class="cursor"></span></div>
+    </div>
+
+    <div id="control-panel">
+        <input type="text" id="targetUrl" placeholder="https://web-rahasia.com" value="">
+        <button onclick="startSystem()">AKTIFKAN</button>
+    </div>
+</div>
+
+<iframe id="protected-view" src=""></iframe>
+
+<script>
+    let blockCount = 0;
+    let reqCount = 0;
+
+    // Update Jam
+    setInterval(() => {
+        document.getElementById('live-clock').innerText = new Date().toLocaleTimeString();
+    }, 1000);
+
+    function addLog(msg, type = 'info') {
+        const log = document.getElementById('terminal-log');
+        const time = new Date().toLocaleTimeString();
+        let colorClass = 'log-info';
+        if (type === 'warn') colorClass = 'log-warn';
+        
+        log.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="${colorClass}">${msg}</span></div>`;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    async function getTrackerData() {
+        try {
+            const res = await fetch('https://ipapi.co/json/');
+            const data = await res.json();
+            document.getElementById('last-ip').innerText = data.ip;
+            addLog(`TRACKER: Pengunjung terdeteksi dari ${data.city}, ${data.country_name} (${data.org})`, 'info');
+        } catch (e) {
+            addLog("TRACKER: Gagal mengambil data IP penyerang.", "warn");
+        }
+    }
+
+    function startSystem() {
+        const url = document.getElementById('targetUrl').value;
+        if (!url) return alert("URL Kosong!");
+
+        addLog("MEMULAI PROTOKOL PERTAHANAN...", "warn");
+        document.getElementById('sys-status').innerText = "FILTERING";
+        document.getElementById('sys-status').style.color = "#00ff00";
+
+        getTrackerData();
+
+        setTimeout(() => { addLog("Melakukan Handshake dengan server target..."); }, 1000);
+        setTimeout(() => { addLog("Mengaktifkan Layer 7 DDoS Mitigation..."); }, 2500);
+        setTimeout(() => {
+            addLog("SISTEM AKTIF. Mengalihkan trafik ke jalur aman.", "info");
+            // Sembunyikan kontrol, tetap tampilkan terminal tapi kecil (opsional)
+            // Di sini kita buka di tab baru atau tetap di iframe
+            document.getElementById('control-panel').style.display = 'none';
+            document.getElementById('terminal-ui').style.height = '30vh'; 
+            document.getElementById('protected-view').style.display = 'block';
+            document.getElementById('protected-view').src = url;
+            
+            runLiveMonitor();
+        }, 4000);
+    }
+
+    function runLiveMonitor() {
+        setInterval(() => {
+            // Simulasi Trafik Real-time
+            reqCount = Math.floor(Math.random() * 50);
+            document.getElementById('traffic-count').innerText = reqCount;
+            document.getElementById('cpu-load').innerText = Math.floor(Math.random() * 15) + "%";
+
+            // Simulasi Serangan Hacker
+            if (Math.random() > 0.8) {
+                blockCount++;
+                document.getElementById('block-count').innerText = blockCount;
+                addLog(`CRITICAL: Serangan DDoS diblokir dari IP ${Math.floor(Math.random()*255)}.xxx.xxx.xxx`, 'warn');
+            }
+        }, 2000);
+    }
+</script>
+
+</body>
+</html>
+
