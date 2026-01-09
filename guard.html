@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Guard Ultra-Security Gateway</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #0a0a0a; color: #fff; overflow: hidden; }
+        
+        /* Halaman Loading / Pembersihan Trafik */
+        #shield-loader {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 1000; flex-direction: column; justify-content: center; align-items: center;
+        }
+        
+        .scanner {
+            width: 100px; height: 100px; border: 5px solid #00ff00; border-top: 5px solid transparent;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Dashboard Utama */
+        #setup { padding: 50px; text-align: center; }
+        #main-gateway { display: none; flex-direction: column; height: 100vh; }
+        
+        .security-bar {
+            background: #111; border-bottom: 2px solid #00ff00; padding: 10px 20px;
+            display: flex; justify-content: space-between; align-items: center; color: #00ff00; font-family: monospace;
+        }
+
+        .status-blink { width: 10px; height: 10px; background: #00ff00; border-radius: 50%; display: inline-block; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        iframe { width: 100%; flex-grow: 1; border: none; background: white; }
+        input { padding: 12px; width: 300px; background: #222; border: 1px solid #00ff00; color: #fff; border-radius: 5px; }
+        button { padding: 12px 25px; background: #00ff00; color: #000; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="setup">
+    <h1 style="color: #00ff00;">🛡️ WEB GUARD GATEWAY v4.0</h1>
+    <p>Aktifkan Pertahanan Tingkat Tinggi untuk Website Anda</p>
+    <input type="text" id="targetUrl" placeholder="https://web-target.com">
+    <button onclick="initShield()">AKTIFKAN PROTEKSI</button>
+</div>
+
+<div id="shield-loader">
+    <div class="scanner"></div>
+    <h2>Menganalisis Koneksi Anda...</h2>
+    <p id="check-text">Memeriksa tanda-tanda serangan DDoS...</p>
+    <p style="color: #555;">Trafik Anda sedang difilter melalui jalur enkripsi aman.</p>
+</div>
+
+<div id="main-gateway">
+    <div class="security-bar">
+        <div><span class="status-blink"></span> GATEWAY: PROTECTED</div>
+        <div id="threat-monitor">Threat Blocked: 0</div>
+        <div id="firewall-status">Firewall: ACTIVE</div>
+    </div>
+    <iframe id="content-frame"></iframe>
+</div>
+
+<script>
+    let blockedCount = 0;
+
+    function initShield() {
+        const url = document.getElementById('targetUrl').value;
+        if (!url) return alert("Masukkan URL!");
+
+        document.getElementById('setup').style.display = 'none';
+        const loader = document.getElementById('shield-loader');
+        loader.style.display = 'flex';
+
+        // Simulasi pemeriksaan keamanan (5 detik)
+        setTimeout(() => { document.getElementById('check-text').innerText = "Memverifikasi integritas browser..."; }, 1500);
+        setTimeout(() => { document.getElementById('check-text').innerText = "Membersihkan paket data mencurigakan..."; }, 3000);
+        
+        setTimeout(() => {
+            loader.style.display = 'none';
+            document.getElementById('main-gateway').style.display = 'flex';
+            document.getElementById('content-frame').src = url;
+            startFirewall();
+        }, 5000);
+    }
+
+    function startFirewall() {
+        setInterval(() => {
+            // Simulasi deteksi dan pemblokiran otomatis
+            let threatLevel = Math.random();
+            if (threatLevel > 0.7) {
+                blockedCount += Math.floor(Math.random() * 10);
+                document.getElementById('threat-monitor').innerText = "Threat Blocked: " + blockedCount;
+                document.getElementById('threat-monitor').style.color = "red";
+                setTimeout(() => { document.getElementById('threat-monitor').style.color = "#00ff00"; }, 500);
+            }
+        }, 2000);
+    }
+</script>
+</body>
+</html>
+
